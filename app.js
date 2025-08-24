@@ -240,7 +240,7 @@ function setupMap() {
         maxZoom: MAP_INITIAL.maxZoom,
         // Hacer el zoom con la ruedita más "lento" (menos sensible)
         // Valor por defecto de Leaflet es ~60; aumentar requiere más movimiento de rueda por nivel
-        wheelPxPerZoomLevel: 10,
+        wheelPxPerZoomLevel: 2000,
         // Pequeño debounce para que no acumule tan rápido eventos de rueda
         wheelDebounceTime: 60,
     }).setView(MAP_INITIAL.center, MAP_INITIAL.zoom);
@@ -357,22 +357,7 @@ function wireUI() {
             updateVisibleCount();
         });
     }
-    // Guardar JSON
-    document.getElementById('save-json-btn').addEventListener('click', () => {
-        const out = {};
-        for (const row of allData) {
-            const direccion = row['Direccion'] ?? row['Dirección'] ?? row['direccion'];
-            const barrio = row['Barrio'] ?? row['barrio'] ?? '';
-            const key = normalizeAddressForKey(barrio ? `${direccion}, ${barrio}` : `${direccion}`);
-            if (row._geo) out[key] = { lat: row._geo.lat, lon: row._geo.lon };
-        }
-        const blob = new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' });
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = 'geocoded.json';
-        a.click();
-        URL.revokeObjectURL(a.href);
-    });
+
     // Guardar CSV
     document.getElementById('save-csv-btn').addEventListener('click', () => {
         // Exportar con el MISMO orden y cantidad de filas que el CSV original
@@ -415,29 +400,7 @@ function wireUI() {
         a.click();
         URL.revokeObjectURL(a.href);
     });
-    // Importar JSON
-    const importBtn = document.getElementById('import-json-btn');
-    const importInput = document.getElementById('import-json-input');
-    importBtn.addEventListener('click', () => importInput.click());
-    importInput.addEventListener('change', async (e) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        try {
-            const text = await file.text();
-            const obj = JSON.parse(text);
-            // Sembrar cache localStorage
-            Object.entries(obj).forEach(([normKey, val]) => {
-                if (val && typeof val.lat === 'number' && typeof val.lon === 'number') {
-                    localStorage.setItem(keyFor(normKey), JSON.stringify(val));
-                    preloadedGeocoded[normKey] = val;
-                }
-            });
-            alert('Geolocalizaciones importadas y cacheadas. Recargá para aplicar rápido.');
-        } catch (err) {
-            console.error(err);
-            alert('No se pudo importar el JSON.');
-        }
-    });
+
     // Botón de recarga eliminado
     document.getElementById('clear-cache-btn').addEventListener('click', () => {
         Object.keys(localStorage).filter(k => k.startsWith('geo:') || k.startsWith('ui:')).forEach(k => localStorage.removeItem(k));
@@ -464,20 +427,6 @@ async function init(forceReload = false) {
         } catch (_) { /* ignore */ }
         if (!map) setupMap();
         wireUI();
-        // Intento de precarga automática desde geocoded.json (si existe en la carpeta)
-        try {
-            const preloadRes = await fetch('geocoded.json', { cache: 'no-store' });
-            if (preloadRes.ok) {
-                const obj = await preloadRes.json();
-                preloadedGeocoded = obj || {};
-                // Pre-sembrar localStorage para velocidad inmediata
-                Object.entries(preloadedGeocoded).forEach(([normKey, val]) => {
-                    if (val && typeof val.lat === 'number' && typeof val.lon === 'number') {
-                        localStorage.setItem(keyFor(normKey), JSON.stringify(val));
-                    }
-                });
-            }
-        } catch (_) { /* silencioso si no existe */ }
         // Si hay direcciones cacheadas previas, dibujarlas sin CSV para no esperar
         if (initialCacheOnly) {
             // Mostrar puntos desde cache si existen claves geo:*
