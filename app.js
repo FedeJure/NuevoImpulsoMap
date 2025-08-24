@@ -297,7 +297,7 @@ function addRightSideImageOverlay() {
     const southWest = [lat - deltaLat / 2, lon - deltaLon / 2];
     const northEast = [lat + deltaLat / 2, lon + deltaLon / 2];
 
-    const overlay = L.imageOverlay('./nuevoimpulso1.png', [southWest, northEast], { interactive: false, opacity: 1 });
+    const overlay = L.imageOverlay('./nuevoImpulso1.png', [southWest, northEast], { interactive: false, opacity: 1 });
     overlay.addTo(map);
     // Agregar clase para estilos (sombra, bordes). getElement() disponible tras addTo(map)
     try {
