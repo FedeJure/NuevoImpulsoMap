@@ -1,0 +1,16 @@
+{
+  "name": "mapasokanuevoimpulso",
+  "version": "1.0.0",
+  "description": "Este proyecto carga `data.csv` con columnas `Region`, `Barrio`, `Direccion`, geocodifica cada dirección (usando Nominatim/OSM) y dibuja los puntos en un mapa de Argentina con clustering inteligente.",
+  "main": "app.js",
+  "scripts": {
+    "start": "serve -l 3000 -s .",
+    "dev": "serve -l 3000 -s .",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "serve": "^14.2.0"
+  }
+}

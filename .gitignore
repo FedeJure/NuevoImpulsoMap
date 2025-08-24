@@ -1,0 +1,44 @@
+# Node & npm
+node_modules/
+.npmrc
+package-lock.json
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Env
+.env
+.env.*
+!.env.example
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+
+# Build / Output
+.dist/
+dist/
+build/
+.out/
+.next/
+.cache/
+coverage/
+
+# Vercel / Deploy
+.vercel/
+.now/
+
+# Local data
+*.local.json
+geocoded.json
+
+# Misc
+*.log
+*.tmp
+*.bak

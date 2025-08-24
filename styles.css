@@ -43,6 +43,18 @@ body {
 }
 .brand { display: flex; align-items: center; gap: 10px; }
 .brand .logo { font-size: 24px; }
+.brand-logo {
+  height: 44px;
+  width: 44px;
+  max-height: 56px;
+  max-width: 56px;
+  min-width: 32px;
+  min-height: 32px;
+  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+  display: block;
+}
 .app-header h1 { font-size: 18px; margin: 0; font-weight: 800; letter-spacing: 0.2px; }
 .metrics { display: flex; align-items: center; gap: 8px; }
 .chip {

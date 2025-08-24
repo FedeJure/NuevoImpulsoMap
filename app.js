@@ -22,6 +22,8 @@ const PARALLEL_REQUESTS = 4; // concurrencia controlada
 
 // Estado global
 let map, clusterGroup, allMarkers = [], allData = [];
+let originalRows = []; // filas en el orden original del CSV
+let originalFields = []; // encabezados originales del CSV
 let clusterRadiusSetting = 40; // 0..100 desde el slider
 let preloadedGeocoded = {}; // direccion-> {lat,lon}
 let initialCacheOnly = true; // al inicio, intentar dibujar desde cache sin CSV
@@ -75,7 +77,11 @@ function loadCSVFromFile(file) {
         Papa.parse(file, {
             header: true,
             skipEmptyLines: true,
-            complete: (results) => resolve(results.data),
+            complete: (results) => {
+                const rows = results.data || [];
+                const fields = (results.meta && results.meta.fields) ? results.meta.fields : Object.keys(rows[0] || {});
+                resolve({ rows, fields });
+            },
             error: (err) => reject(err),
         });
     });
@@ -164,74 +170,62 @@ function updateVisibleCount() {
 // No filters: siempre mostrar todos los puntos
 
 async function processData(rows) {
-    allData = rows.filter(r => r && (r['Direccion'] || r['Dirección'] || r['direccion']));
+    // Mantener todas las filas y el orden original
+    allData = rows.slice();
     statTotal().textContent = String(allData.length);
     setProgress(0, allData.length);
 
-    // Sin filtros, no construimos UI de regiones
-
-    // Geocodificación más rápida: concurrencia + render incremental + cache progresiva
     let done = 0; let geocodedCount = 0; const failedAddresses = [];
-    const queue = [];
-    // Sembrar coordenadas de filas que ya traen Lat/Lon en CSV
+
     for (const row of allData) {
-        const coords = getCoordsFromRow(row);
-        if (coords) {
-            row._geo = coords;
-            // Sembrar cache para la clave compuesta
-            const direccion = (row['Direccion'] ?? row['Dirección'] ?? row['direccion'] ?? '').trim();
-            const barrio = (row['Barrio'] ?? row['barrio'] ?? '').trim();
-            const key = normalizeAddressForKey(barrio ? `${direccion}, ${barrio}` : `${direccion}`);
-            if (key) localStorage.setItem(keyFor(key), JSON.stringify(row._geo));
-            geocodedCount++;
-            const m = markerForRow(row, coords.lat, coords.lon);
-            allMarkers.push(m);
-            clusterGroup.addLayer(m);
-        } else {
-            queue.push(row);
-        }
-    }
-
-    async function worker() {
-        while (queue.length) {
-            const row = queue.shift();
-            const direccion = row['Direccion'] ?? row['Dirección'] ?? row['direccion'];
-            const barrio = row['Barrio'] ?? row['barrio'] ?? '';
-            const query = `${direccion}`;
-            // const query = barrio ? `${direccion}, ${barrio}` : `${direccion}`;
-            try {
-                const geo = await geocodeAddress(query);
-                if (geo) {
-                    row._geo = geo; // cachea en memoria
-                    geocodedCount++;
-                    // render incremental: agregar marcador y actualizar visible
-                    const m = markerForRow(row, geo.lat, geo.lon);
-                    allMarkers.push(m);
-                    clusterGroup.addLayer(m);
-                    updateVisibleCount();
-                } else {
-                    failedAddresses.push(query);
+        try {
+            // 1) Si ya hay coords, usarlas directamente
+            const coords = getCoordsFromRow(row);
+            if (coords) {
+                row._geo = coords;
+                // Sembrar cache con clave direccion(+barrio)
+                const direccion = (row['Direccion'] ?? row['Dirección'] ?? row['direccion'] ?? '').trim();
+                const barrio = (row['Barrio'] ?? row['barrio'] ?? '').trim();
+                const key = normalizeAddressForKey(barrio ? `${direccion}, ${barrio}` : `${direccion}`);
+                if (key) localStorage.setItem(keyFor(key), JSON.stringify(row._geo));
+                geocodedCount++;
+                const m = markerForRow(row, coords.lat, coords.lon);
+                allMarkers.push(m);
+                clusterGroup.addLayer(m);
+            } else {
+                // 2) Si no hay coords, intentar geocodificar si hay dirección
+                const direccion = (row['Direccion'] ?? row['Dirección'] ?? row['direccion'] ?? '').trim();
+                const barrio = (row['Barrio'] ?? row['barrio'] ?? '').trim();
+                if (direccion) {
+                    const query = `${direccion}`; // o incluir barrio si se desea
+                    const geo = await geocodeAddress(query);
+                    if (geo) {
+                        row._geo = geo;
+                        geocodedCount++;
+                        const m = markerForRow(row, geo.lat, geo.lon);
+                        allMarkers.push(m);
+                        clusterGroup.addLayer(m);
+                    } else {
+                        failedAddresses.push(query);
+                    }
                 }
-            } catch (e) {
-                console.warn('Geocode fallo', query, e);
-                failedAddresses.push(query);
-            } finally {
-                done++;
-                setProgress(done, allData.length);
-                statGeocoded().textContent = String(geocodedCount);
             }
+        } catch (e) {
+            const direccion = row['Direccion'] ?? row['Dirección'] ?? row['direccion'] ?? '';
+            console.warn('Geocode fallo', direccion, e);
+            if (direccion) failedAddresses.push(direccion);
+        } finally {
+            done++;
+            setProgress(done, allData.length);
+            statGeocoded().textContent = String(geocodedCount);
+            // Actualizar conteo visible de forma incremental
+            if (done % 5 === 0) updateVisibleCount();
         }
     }
-
-    // Lanzar N workers en paralelo
-    const workers = Array.from({ length: PARALLEL_REQUESTS }, () => worker());
-    await Promise.all(workers);
 
     if (geocodedCount > 0) fireConfetti();
-    // Una vez finalizado, ya están todos los marcadores cargados
     updateVisibleCount();
 
-    // Loguear direcciones sin coordenadas
     if (failedAddresses.length) {
         const uniques = Array.from(new Set(failedAddresses));
         console.log('Direcciones sin coordenadas (%d):', uniques.length);
@@ -244,6 +238,11 @@ function setupMap() {
         zoomControl: true,
         minZoom: MAP_INITIAL.minZoom,
         maxZoom: MAP_INITIAL.maxZoom,
+        // Hacer el zoom con la ruedita más "lento" (menos sensible)
+        // Valor por defecto de Leaflet es ~60; aumentar requiere más movimiento de rueda por nivel
+        wheelPxPerZoomLevel: 10,
+        // Pequeño debounce para que no acumule tan rápido eventos de rueda
+        wheelDebounceTime: 60,
     }).setView(MAP_INITIAL.center, MAP_INITIAL.zoom);
 
     // Base map: CARTO Positron (claro/blanco)
@@ -312,9 +311,18 @@ function wireUI() {
             const file = e.target.files?.[0];
             if (!file) return;
             try {
+                // Limpiar mapa y estado previo para evitar duplicados
+                allData = [];
+                allMarkers = [];
+                if (clusterGroup) clusterGroup.clearLayers();
+                statTotal().textContent = '0';
+                statVisible().textContent = '0';
+                statGeocoded().textContent = '0';
                 setProgress(0, 0);
                 progressText().textContent = 'Cargando CSV...';
-                const rows = await loadCSVFromFile(file);
+                const { rows, fields } = await loadCSVFromFile(file);
+                originalRows = rows.slice();
+                originalFields = Array.isArray(fields) ? fields.slice() : Object.keys(originalRows[0] || {});
                 await processData(rows);
             } catch (err) {
                 console.error(err);
@@ -367,25 +375,39 @@ function wireUI() {
     });
     // Guardar CSV
     document.getElementById('save-csv-btn').addEventListener('click', () => {
-        // Exportar CSV original + dos columnas nuevas Lat y Lon
-        // Preservamos columnas base si vienen en el CSV, y agregamos al final Lat,Lon
-        const cols = ['Region', 'Región', 'region', 'Barrio', 'barrio', 'Direccion', 'Dirección', 'direccion'];
-        const pick = (r, keys) => {
-            for (const k of keys) if (r[k] != null && r[k] !== '') return String(r[k]);
-            return '';
-        };
-        const header = ['Region', 'Barrio', 'Direccion', 'Lat', 'Lon'];
-        const lines = allData.map(r => {
-            const region = pick(r, ['Region', 'Región', 'region']);
-            const barrio = pick(r, ['Barrio', 'barrio']);
-            const direccion = pick(r, ['Direccion', 'Dirección', 'direccion']);
-            const lat = r._geo?.lat ?? '';
-            const lon = r._geo?.lon ?? '';
-            // Encerrar siempre en comillas y duplicar comillas internas para evitar problemas con comas
-            const q = v => '"' + String(v).replace(/"/g, '""') + '"';
-            return `${q(region)},${q(barrio)},${q(direccion)},${lat},${lon}`;
+        // Exportar con el MISMO orden y cantidad de filas que el CSV original
+        // Tomamos los encabezados originales y agregamos Lat/Lon si no existen
+        const fields = originalFields && originalFields.length ? originalFields.slice() : Object.keys(originalRows[0] || {});
+        const hasLat = fields.some(f => /^lat$/i.test(f));
+        const hasLon = fields.some(f => /^(lon|lng|long)$/i.test(f));
+        const outFields = fields.slice();
+        if (!hasLat) outFields.push('Lat');
+        if (!hasLon) outFields.push('Lon');
+
+        const q = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+        const lines = originalRows.map((origRow, idx) => {
+            // Buscar la fila correspondiente en allData por igualdad de índice (preservamos orden 1:1)
+            const r = allData[idx] || origRow;
+            // Construir objeto base copiando valores originales para no alterar orden ni contenido
+            const base = { ...origRow };
+            // Inyectar Lat/Lon desde _geo si existen
+            const latVal = r && r._geo ? r._geo.lat : base['Lat'] ?? base['lat'] ?? '';
+            const lonVal = r && r._geo ? r._geo.lon : base['Lon'] ?? base['lon'] ?? base['Lng'] ?? base['lng'] ?? '';
+            // Generar fila respetando outFields
+            const rowValues = outFields.map(f => {
+                if (/^lat$/i.test(f)) return latVal;
+                if (/^(lon|lng|long)$/i.test(f)) return lonVal;
+                return base[f] ?? '';
+            });
+            // Citar solo los campos de texto, dejar lat/lon como números si ya lo son
+            return rowValues.map((v, i) => {
+                const f = outFields[i];
+                if (/^(lat|lon|lng|long)$/i.test(f)) return String(v ?? '');
+                return q(v);
+            }).join(',');
         });
-        const csv = header.join(',') + '\n' + lines.join('\n');
+
+        const csv = outFields.join(',') + '\n' + lines.join('\n');
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
