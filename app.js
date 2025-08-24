@@ -242,7 +242,6 @@ function updateVisibleCount() {
 async function processData(rows) {
     // Mantener todas las filas y el orden original
     allData = rows.slice();
-    statTotal().textContent = String(allData.length);
     setProgress(0, allData.length);
 
     let done = 0; let geocodedCount = 0; const failedAddresses = [];
@@ -287,7 +286,6 @@ async function processData(rows) {
         } finally {
             done++;
             setProgress(done, allData.length);
-            statGeocoded().textContent = String(geocodedCount);
             // Actualizar conteo visible de forma incremental
             if (done % 5 === 0) updateVisibleCount();
         }
@@ -468,9 +466,7 @@ function wireUI() {
                 allData = [];
                 allMarkers = [];
                 if (clusterGroup) clusterGroup.clearLayers();
-                statTotal().textContent = '0';
                 statVisible().textContent = '0';
-                statGeocoded().textContent = '0';
                 setProgress(0, 0);
                 progressText().textContent = 'Cargando CSV...';
                 const { rows, fields } = await loadCSVFromFile(file);
