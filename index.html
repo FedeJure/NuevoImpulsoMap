@@ -9,6 +9,7 @@
         content="Mapa interactivo de Argentina que muestra puntos a partir de un CSV con Región, Barrio y Dirección. Clustering inteligente y UI gamificada." />
 
     <!-- Fuentes y estilos -->
+    <link rel="icon" href="/earth.png" type="image/x-icon">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800&display=swap" rel="stylesheet">
@@ -33,30 +34,45 @@
             <div class="chip" title="Total de filas en CSV"><span id="stat-total">0</span> registros</div>
             <div class="chip" title="Puntos geocodificados"><span id="stat-geocoded">0</span> geocodificados</div>
             <div class="chip" title="Puntos visibles"><span id="stat-visible">0</span> visibles</div>
+            <button id="toggle-panel-btn" class="btn ghost small" title="Mostrar/Ocultar panel">☰</button>
         </div>
     </header>
 
     <div id="map"></div>
 
-    <aside class="control-panel">
+    <aside class="control-panel" id="control-panel">
         <div class="panel-section">
-            <h2>Buscar</h2>
-            <input id="search-input" class="search" type="search" placeholder="Filtrar por barrio o dirección..." />
+            <h2>Agrupación</h2>
+            <input id="cluster-range" type="range" min="0" max="100" step="1" value="40" style="width:100%" />
+            <small class="hint">0 = sin agrupar, 100 = agrupar todo en un punto</small>
         </div>
         <div class="panel-section">
-            <h2>Regiones</h2>
-            <div id="regions-container" class="regions"></div>
-        </div>
-        <div class="panel-section">
+            <h2>Datos</h2>
+            <div class="subtle" style="margin-bottom:8px;">
+                <button id="select-csv-btn" class="btn">Seleccionar CSV</button>
+                <input id="csv-file-input" type="file" accept=".csv,text/csv" style="display:none" />
+            </div>
             <h2>Progreso</h2>
             <div class="progress">
                 <div id="progress-bar" class="bar" style="width:0%"></div>
             </div>
-            <small id="progress-text">Esperando datos...</small>
+            <small id="progress-text">Esperando selección de CSV...</small>
+        </div>
+        <div class="panel-section">
+            <h2>Geolocalización</h2>
+            <div class="subtle">
+                <button id="save-json-btn" class="btn">Guardar JSON</button>
+                <button id="save-csv-btn" class="btn ghost">Guardar CSV</button>
+            </div>
+            <div class="subtle" style="margin-top:8px;">
+                <button id="import-json-btn" class="btn ghost">Importar JSON</button>
+                <input id="import-json-input" type="file" accept="application/json" style="display:none" />
+            </div>
+            <small class="hint">Si existe <code>geocoded.json</code> en la carpeta, se carga automáticamente al
+                iniciar.</small>
         </div>
         <div class="panel-section subtle">
-            <button id="reload-btn" class="btn">Recargar CSV</button>
-            <button id="clear-cache-btn" class="btn ghost">Limpiar caché</button>
+            <button id="clear-cache-btn" class="btn ghost">Borrar guardado</button>
         </div>
     </aside>
 

@@ -1,17 +1,19 @@
 /* Base */
 :root {
-  --bg: #0e1320;
-  --panel: #121a2b;
-  --panel-soft: #0f1727;
-  --text: #e8f0ff;
-  --muted: #9fb3d1;
-  --accent: #00e0ff;
-  --accent-2: #00ffa3;
-  --chip: #1b2640;
-  --chip-border: #2a385c;
-  --btn: #1b6ef3;
-  --btn-ghost: #223154;
-  --danger: #ff6b6b;
+  /* Colorful light theme */
+  --bg: #f7f9fc;
+  --panel: #ffffff;
+  --panel-soft: #fafbff;
+  --text: #18213a;
+  --muted: #5c6b8a;
+  --accent: #0b74ff; /* Blue */
+  --accent-2: #ff3b30; /* Red */
+  --accent-3: #ffcc00; /* Yellow */
+  --chip: #f0f4ff;
+  --chip-border: #d7e3ff;
+  --btn: #0b74ff;
+  --btn-ghost: #e9f0ff;
+  --danger: #ff3b30;
 }
 
 * { box-sizing: border-box; }
@@ -20,7 +22,7 @@ body {
   margin: 0;
   font-family: 'Poppins', system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Helvetica Neue', Arial, 'Apple Color Emoji', 'Segoe UI Emoji';
   color: var(--text);
-  background: linear-gradient(180deg, #0a0f1d 0%, #0a0f1d 40%, #0c1530 100%);
+  background: linear-gradient(180deg, #ffffff 0%, #f7f9fc 60%, #eef3ff 100%);
 }
 
 /* Header */
@@ -34,8 +36,8 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 0 16px;
-  background: rgba(14,19,32,0.82);
-  border-bottom: 1px solid rgba(255,255,255,0.06);
+  background: rgba(255,255,255,0.8);
+  border-bottom: 1px solid rgba(10, 56, 140, 0.08);
   backdrop-filter: blur(8px);
   z-index: 1000;
 }
@@ -58,24 +60,29 @@ body {
   position: fixed;
   top: 64px;
   left: 0;
-  right: 320px;
+  right: 0; /* el mapa ocupa todo; el panel superpone */
   bottom: 48px;
   z-index: 1;
 }
 
 /* Control panel */
 .control-panel {
-  position: fixed;
-  top: 64px;
-  right: 0;
-  width: 320px;
-  bottom: 48px;
+  position: absolute; /* superpone sobre el mapa */
+  top: 80px; /* debajo del header */
+  right: 16px;
+  width: 360px;
+  bottom: 80px; /* por encima del footer */
   background: linear-gradient(180deg, var(--panel) 0%, var(--panel-soft) 100%);
-  border-left: 1px solid rgba(255,255,255,0.06);
+  border: 1px solid rgba(10, 56, 140, 0.12);
+  border-radius: 16px;
   padding: 16px;
   overflow: auto;
-  z-index: 2;
+  z-index: 900; /* debajo del header (1000), sobre el mapa */
+  box-shadow: 0 12px 30px rgba(0,0,0,0.15);
+  transition: transform .25s ease;
 }
+.control-panel.collapsed { transform: translateX(calc(100% + 24px)); }
+.btn.small { padding: 6px 10px; font-size: 12px; border-radius: 8px; }
 .panel-section { margin-bottom: 18px; }
 .panel-section h2 { margin: 0 0 8px; font-size: 14px; color: var(--muted); font-weight: 800; text-transform: uppercase; letter-spacing: .5px; }
 .search {
@@ -89,7 +96,7 @@ body {
 }
 .regions { display: flex; flex-wrap: wrap; gap: 8px; }
 .region-chip {
-  background: linear-gradient(180deg, #0f1a36, #0e1630);
+  background: linear-gradient(180deg, #ffffff, #fff8e1);
   border: 1px solid var(--chip-border);
   color: var(--text);
   padding: 8px 10px;
@@ -98,9 +105,9 @@ body {
   font-size: 12px;
   user-select: none;
 }
-.region-chip.active { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(0,224,255,0.2) inset; }
+.region-chip.active { border-color: var(--accent-3); box-shadow: 0 0 0 2px rgba(255,204,0,0.25) inset; }
 .progress { height: 10px; border-radius: 999px; background: rgba(255,255,255,0.08); overflow: hidden; border: 1px solid rgba(255,255,255,0.06); }
-.bar { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width .3s ease; }
+.bar { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2), var(--accent-3)); transition: width .3s ease; }
 
 .btn {
   appearance: none;
@@ -108,13 +115,16 @@ body {
   border-radius: 12px;
   padding: 10px 12px;
   color: white;
-  background: var(--btn);
+  background: linear-gradient(180deg, var(--accent), #0555c9);
   cursor: pointer;
   font-weight: 700;
 }
-.btn.ghost { background: var(--btn-ghost); }
+.btn.ghost { background: var(--btn-ghost); color: var(--text); }
 .btn + .btn { margin-left: 8px; }
 .subtle { display: flex; align-items: center; justify-content: space-between; }
+
+.select { width: 100%; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--chip-border); background: #fff; color: var(--text); }
+.hint { color: var(--muted); }
 
 /* Footer */
 .app-footer {
@@ -126,28 +136,31 @@ body {
   justify-content: space-between;
   padding: 0 16px;
   color: var(--muted);
-  background: rgba(14,19,32,0.8);
-  border-top: 1px solid rgba(255,255,255,0.06);
+  background: rgba(255,255,255,0.9);
+  border-top: 1px solid rgba(10, 56, 140, 0.08);
   z-index: 1000;
 }
 
 /* Leaflet tweaks */
-.leaflet-container { background: #0b1224; }
-.marker-cluster-small { background-color: rgba(0, 224, 255, 0.2); }
-.marker-cluster-small div { background-color: rgba(0, 224, 255, 0.9); color: #00131a; font-weight: 800; }
-.marker-cluster-medium { background-color: rgba(0, 255, 163, 0.2); }
-.marker-cluster-medium div { background-color: rgba(0, 255, 163, 0.9); color: #001a12; font-weight: 800; }
-.marker-cluster-large { background-color: rgba(0, 136, 255, 0.2); }
-.marker-cluster-large div { background-color: rgba(0, 136, 255, 0.9); color: #001a33; font-weight: 800; }
+.leaflet-container { background: #ffffff; }
+.marker-cluster-small { background-color: rgba(11, 116, 255, 0.16); }
+.marker-cluster-small div { background-color: rgba(11, 116, 255, 0.92); color: #ffffff; font-weight: 800; }
+.marker-cluster-medium { background-color: rgba(255, 59, 48, 0.16); }
+.marker-cluster-medium div { background-color: rgba(255, 59, 48, 0.9); color: #ffffff; font-weight: 800; }
+.marker-cluster-large { background-color: rgba(255, 204, 0, 0.18); }
+.marker-cluster-large div { background-color: rgba(255, 204, 0, 0.95); color: #5a4300; font-weight: 800; }
 
 /* Popups */
-.leaflet-popup-content-wrapper { background: #0f1a36; color: var(--text); border: 1px solid rgba(255,255,255,0.1); }
-.leaflet-popup-tip { background: #0f1a36; }
+.leaflet-popup-content-wrapper { background: #ffffff; color: var(--text); border: 1px solid rgba(10,56,140,0.12); }
+.leaflet-popup-tip { background: #ffffff; }
 .leaflet-popup-content { font-size: 13px; }
 .leaflet-popup-content strong { color: var(--accent); }
 
 /* Responsive */
 @media (max-width: 900px) {
-  #map { right: 0; }
-  .control-panel { position: static; width: auto; border: none; height: auto; }
+  .control-panel {
+    left: 16px;
+    right: 16px;
+    width: auto;
+  }
 }
