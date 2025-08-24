@@ -250,9 +250,9 @@ function setupMap() {
         maxZoom: MAP_INITIAL.maxZoom,
         // Hacer el zoom con la ruedita más "lento" (menos sensible)
         // Valor por defecto de Leaflet es ~60; aumentar requiere más movimiento de rueda por nivel
-        wheelPxPerZoomLevel: 2000,
+        wheelPxPerZoomLevel: 150000,
         // Pequeño debounce para que no acumule tan rápido eventos de rueda
-        wheelDebounceTime: 60,
+        wheelDebounceTime: 0,
     }).setView(MAP_INITIAL.center, MAP_INITIAL.zoom);
 
     // Base map: CARTO Positron (claro/blanco)
@@ -263,7 +263,7 @@ function setupMap() {
     }).addTo(map);
 
     // Añadir imagen overlay a la derecha de Argentina (no interactiva)
-    try { addRightSideImageOverlay(); } catch (_) { /* no crítico */ }
+    // try { addRightSideImageOverlay(); } catch (_) { /* no crítico */ }
 
     // Crear cluster group inicial
     clusterGroup = createClusterGroup();
@@ -277,8 +277,8 @@ function setupMap() {
 // Añadir una imagen fija sobre el mapa (en coordenadas relativas a Argentina)
 function addRightSideImageOverlay() {
     // Coordenadas aproximadas al este de Argentina para que la imagen aparezca 'a la derecha'
-    const lat = -45.0; // centro vertical aproximado
-    const lon = -52.0; // más al este para quedar a la derecha del país
+    const lat = -22.0; // centro vertical aproximado
+    const lon = -61.5; // más al este para quedar a la derecha del país
 
     const html = `<div class="map-overlay-image"></div>`;
     const icon = L.divIcon({
@@ -291,13 +291,13 @@ function addRightSideImageOverlay() {
     const marker = L.marker([lat, lon], { icon, interactive: false, keyboard: false, pane: 'overlayPane' });
     marker.addTo(map);
     // Tamaño geográfico en grados (lat/lon) — esto hará que la imagen escale con el zoom
-    const deltaLat = 20.0; // altura en grados
-    const deltaLon = 30.0; // anchura en grados
+    const deltaLat = 90.0; // altura en grados
+    const deltaLon = 120.0; // anchura en grados
 
     const southWest = [lat - deltaLat / 2, lon - deltaLon / 2];
     const northEast = [lat + deltaLat / 2, lon + deltaLon / 2];
 
-    const overlay = L.imageOverlay('./nuevoImpulso1.png', [southWest, northEast], { interactive: false, opacity: 1 });
+    const overlay = L.imageOverlay('./mask.png', [southWest, northEast], { interactive: false, opacity: 1 });
     overlay.addTo(map);
     // Agregar clase para estilos (sombra, bordes). getElement() disponible tras addTo(map)
     try {

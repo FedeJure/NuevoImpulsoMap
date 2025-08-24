@@ -19,6 +19,7 @@
 * { box-sizing: border-box; }
 html, body { height: 100%; }
 body {
+  overflow: hidden;
   margin: 0;
   font-family: 'Poppins', system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Helvetica Neue', Arial, 'Apple Color Emoji', 'Segoe UI Emoji';
   color: var(--text);
@@ -196,4 +197,15 @@ body {
   top: 10%;
   z-index: 1000;
   width: 20vw;
+  min-width: 200px;
+}
+
+.imageHeaderright {
+  position: absolute;
+  bottom: 0%;
+  right: 0;
+  z-index: 1000;
+  width: 20vw;
+  min-width: 200px;
+
 }
