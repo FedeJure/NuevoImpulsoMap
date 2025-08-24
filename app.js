@@ -28,6 +28,8 @@ let clusterRadiusSetting = 40; // 0..100 desde el slider
 let preloadedGeocoded = {}; // direccion-> {lat,lon}
 let initialCacheOnly = true; // al inicio, intentar dibujar desde cache sin CSV
 let lastGeocodeTs = 0;
+let confettiEnabled = false;
+const LS_CONFETTI = 'ui:confettiEnabled';
 
 // UI refs
 const statTotal = () => document.getElementById('stat-total');
@@ -70,6 +72,64 @@ function fireConfetti() {
         origin: { y: 0.6 },
         colors: ['#00e0ff', '#00ffa3', '#ffffff']
     });
+}
+
+// Confetti controller for continuous bursts
+const _confettiCtrl = { id: null };
+
+function _randomSideX() {
+    // Escoger aleatoriamente izquierda (0-0.3) o derecha (0.7-1.0)
+    const left = Math.random() < 0.5;
+    if (left) return Math.random() * 0.30; // 0..0.3
+    return 0.7 + Math.random() * 0.30; // 0.7..1.0
+}
+
+function _nextSideX() {
+    // Alternar entre left/right de forma determinista
+    if (!_confettiCtrl.side) _confettiCtrl.side = 'right';
+    _confettiCtrl.side = _confettiCtrl.side === 'left' ? 'right' : 'left';
+    if (_confettiCtrl.side === 'left') return Math.random() * 0.30;
+    return 0.7 + Math.random() * 0.30;
+}
+
+/**
+ * fireConfetti(options)
+ * options = { continuous: boolean, interval: ms, duration: ms, particleCount }
+ * - continuous: si true, dispara ráfagas continuas hasta duration ms
+ */
+function fireConfetti(options = {}) {
+    if (typeof confetti !== 'function') return;
+    const { continuous = false, interval = 350, duration = 4000, particleCount = 120 } = options;
+
+    if (!continuous) {
+        // Un único burst en un lateral aleatorio
+        const x = _randomSideX();
+        confetti({ particleCount, spread: 60, origin: { x, y: 0.6 }, colors: ['#ff3b30', '#ffcc00', '#0b74ff'] });
+        return;
+    }
+
+    // Si ya hay uno corriendo, no iniciar otro
+    if (_confettiCtrl.id) return;
+
+    _confettiCtrl.id = setInterval(() => {
+        // Alternar left/right consecutivamente
+        const x = _nextSideX();
+        // Variar y y particleCount para sensación más dinámica (20%..80% de la pantalla)
+        const cnt = Math.max(40, Math.floor(particleCount * (0.6 + Math.random() * 0.8)));
+        confetti({ particleCount: cnt, spread: 70, origin: { x, y: 0.8 }, ticks: 200, gravity: 0.5, colors: ['#ff3b30', '#ffcc00', '#0b74ff'] });
+    }, interval);
+
+    // Si duration está definido, detener después
+    if (duration && duration > 0) {
+        setTimeout(() => stopConfetti(), duration);
+    }
+}
+
+function stopConfetti() {
+    if (_confettiCtrl.id) {
+        clearInterval(_confettiCtrl.id);
+        _confettiCtrl.id = null;
+    }
 }
 
 function loadCSVFromFile(file) {
@@ -499,6 +559,26 @@ function wireUI() {
         Object.keys(localStorage).filter(k => k.startsWith('geo:') || k.startsWith('ui:')).forEach(k => localStorage.removeItem(k));
         alert('Guardado borrado (coordenadas y preferencias).');
     });
+
+    // Toggle confetti
+    const confettiBtn = document.getElementById('toggle-confetti-btn');
+    if (confettiBtn) {
+        const reflect = () => { confettiBtn.textContent = `Confetti: ${confettiEnabled ? 'On' : 'Off'}`; };
+        reflect();
+        confettiBtn.addEventListener('click', () => { confettiEnabled = !confettiEnabled; setConfettiEnabled(confettiEnabled, true); reflect(); });
+    }
+}
+
+function setConfettiEnabled(enabled, persist = true) {
+    confettiEnabled = !!enabled;
+    if (persist) {
+        try { localStorage.setItem(LS_CONFETTI, confettiEnabled ? '1' : '0'); } catch (_) { }
+    }
+    if (confettiEnabled) {
+        fireConfetti({ continuous: true, interval: 500, duration: 0, particleCount: 80 });
+    } else {
+        stopConfetti();
+    }
 }
 
 async function init(forceReload = false) {
@@ -520,6 +600,12 @@ async function init(forceReload = false) {
         } catch (_) { /* ignore */ }
         if (!map) setupMap();
         wireUI();
+        // Leer preferencia de confetti
+        try {
+            const v = localStorage.getItem(LS_CONFETTI);
+            confettiEnabled = v === '1';
+        } catch (_) { confettiEnabled = false; }
+        setConfettiEnabled(confettiEnabled, /*persist*/ false);
         // Si hay direcciones cacheadas previas, dibujarlas sin CSV para no esperar
         if (initialCacheOnly) {
             // Mostrar puntos desde cache si existen claves geo:*
