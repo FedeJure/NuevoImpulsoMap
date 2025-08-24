@@ -31,14 +31,14 @@
             <h1>Encuentros Nuevo Impulso - Argentina</h1>
         </div>
         <div class="metrics">
-            <div class="chip" title="Total de filas en CSV"><span id="stat-total">0</span> registros</div>
-            <div class="chip" title="Puntos geocodificados"><span id="stat-geocoded">0</span> geocodificados</div>
-            <div class="chip" title="Puntos visibles"><span id="stat-visible">0</span> visibles</div>
+            <div class="chip" title="Puntos visibles"><span id="stat-visible">0</span> Encuentros de nuevo impulso!
+            </div>
             <button id="toggle-panel-btn" class="btn ghost small" title="Mostrar/Ocultar panel">☰</button>
         </div>
     </header>
 
     <div id="map"></div>
+    <img src="./nuevoimpulso2.png" alt="Impulsito" class="imageHeader" />
 
     <aside class="control-panel" id="control-panel">
         <div class="panel-section">
@@ -68,16 +68,6 @@
             <button id="clear-cache-btn" class="btn ghost">Borrar guardado</button>
         </div>
     </aside>
-
-    <footer class="app-footer">
-        <div>
-            Datos desde <code>data.csv</code> — Se geocodifica localmente con Nominatim (OSM) con cacheo y límites
-            responsables.
-        </div>
-        <div>
-            Consejo: acercá el zoom para expandir clusters. Hacé click en un punto para ver detalles.
-        </div>
-    </footer>
 
     <!-- Scripts externos -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"

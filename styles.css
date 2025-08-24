@@ -36,9 +36,10 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 0 16px;
-  background: rgba(255,255,255,0.8);
-  border-bottom: 1px solid rgba(10, 56, 140, 0.08);
-  backdrop-filter: blur(8px);
+  /* Gradiente cálido inspirado en la imagen adjunta */
+  background: linear-gradient(90deg, #ffd34d 0%, #ff9a6a 30%, #ff6ea0 65%, #ffcf6b 100%);
+  border-bottom: 0;
+  backdrop-filter: none;
   z-index: 1000;
 }
 .brand { display: flex; align-items: center; gap: 10px; }
@@ -55,16 +56,21 @@ body {
   box-shadow: 0 2px 6px rgba(0,0,0,0.08);
   display: block;
 }
-.app-header h1 { font-size: 18px; margin: 0; font-weight: 800; letter-spacing: 0.2px; }
+.app-header h1 { font-size: 18px; margin: 0; font-weight: 800; letter-spacing: 0.2px; color: #ffffff; }
 .metrics { display: flex; align-items: center; gap: 8px; }
 .chip {
-  background: var(--chip);
-  border: 1px solid var(--chip-border);
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.12);
   padding: 6px 10px;
   border-radius: 999px;
-  color: var(--muted);
+  color: #ffffff;
   font-weight: 600;
   font-size: 12px;
+}
+
+.app-header .btn.ghost {
+  background: rgba(255,255,255,0.12);
+  color: #ffffff;
 }
 
 /* Map */
@@ -73,7 +79,7 @@ body {
   top: 64px;
   left: 0;
   right: 0; /* el mapa ocupa todo; el panel superpone */
-  bottom: 48px;
+  bottom: 0;
   z-index: 1;
 }
 
@@ -155,12 +161,12 @@ body {
 
 /* Leaflet tweaks */
 .leaflet-container { background: #ffffff; }
-.marker-cluster-small { background-color: rgba(11, 116, 255, 0.16); }
-.marker-cluster-small div { background-color: rgba(11, 116, 255, 0.92); color: #ffffff; font-weight: 800; }
-.marker-cluster-medium { background-color: rgba(255, 59, 48, 0.16); }
-.marker-cluster-medium div { background-color: rgba(255, 59, 48, 0.9); color: #ffffff; font-weight: 800; }
-.marker-cluster-large { background-color: rgba(255, 204, 0, 0.18); }
-.marker-cluster-large div { background-color: rgba(255, 204, 0, 0.95); color: #5a4300; font-weight: 800; }
+.marker-cluster-small { background-color: rgba(34, 197, 94, 0.14); }
+.marker-cluster-small div { background-color: rgba(34, 197, 94, 0.95); color: #ffffff; font-weight: 800; }
+.marker-cluster-medium { background-color: rgba(34, 197, 94, 0.14); }
+.marker-cluster-medium div { background-color: rgba(16, 185, 129, 0.95); color: #ffffff; font-weight: 800; }
+.marker-cluster-large { background-color: rgba(34, 197, 94, 0.14); }
+.marker-cluster-large div { background-color: rgba(5, 150, 105, 0.95); color: #ffffff; font-weight: 800; }
 
 /* Popups */
 .leaflet-popup-content-wrapper { background: #ffffff; color: var(--text); border: 1px solid rgba(10,56,140,0.12); }
@@ -175,4 +181,19 @@ body {
     right: 16px;
     width: auto;
   }
+}
+
+/* Imagen overlay sobre el mapa (no interactiva) */
+.map-overlay-image img { 
+  display: block;
+  pointer-events: none; /* dejar pasar clicks al mapa */
+  border-radius: 8px;
+  /* box-shadow: 0 8px 24px rgba(3, 10, 25, 0.28); */
+}
+
+.imageHeader {
+  position: absolute;
+  top: 10%;
+  z-index: 1000;
+  width: 20vw;
 }

@@ -11,7 +11,7 @@
 const MAP_INITIAL = {
     center: [-38.4161, -63.6167], // Argentina
     zoom: 4,
-    minZoom: 3,
+    minZoom: 4,
     maxZoom: 18,
 };
 
@@ -129,12 +129,21 @@ async function geocodeAddress(q) {
 }
 
 function createCustomIcon() {
+    // Seleccionar aleatoriamente entre rojo, amarillo o azul
+    const palette = ['#ff3b30', '#ffcc00', '#0b74ff'];
+    const color = palette[Math.floor(Math.random() * palette.length)];
+    const svg = `
+            <svg width="28" height="40" viewBox="0 0 24 34" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path d="M12 0C7 0 3.5 3.5 3.5 8.5c0 6.5 8.5 18 8.5 18s8.5-11.5 8.5-18C20.5 3.5 17 0 12 0z" fill="${color}"/>
+                <circle cx="12" cy="8.5" r="3.2" fill="#ffffff"/>
+            </svg>`;
+    // Usar el SVG directamente sin transform: Leaflet posicionará por iconAnchor
     return L.divIcon({
-        className: 'custom-marker',
-        html: `<div style="transform: translate(-50%, -50%); display:flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:999px; background: linear-gradient(180deg,#00e0ff,#00ffa3); color:#00131a; font-weight:800; font-size:11px; border:2px solid #001b2e; box-shadow: 0 4px 10px rgba(0,0,0,0.4)">★</div>`,
-        iconSize: [22, 22],
-        iconAnchor: [11, 11],
-        popupAnchor: [0, -10],
+        className: 'custom-marker-pin',
+        html: svg,
+        iconSize: [28, 40],
+        iconAnchor: [14, 40],
+        popupAnchor: [0, 20],
     });
 }
 
@@ -145,12 +154,14 @@ function markerForRow(row, lat, lon) {
     const direccion = row['Direccion'] ?? row['Dirección'] ?? row['direccion'] ?? '';
     const region = row['Region'] ?? row['Región'] ?? row['region'] ?? '';
     m.bindPopup(`
-    <div>
-      <div><strong>Dirección:</strong> ${direccion}</div>
-      <div><strong>Barrio:</strong> ${barrio}</div>
-      <div><strong>Región:</strong> ${region}</div>
-    </div>
-  `);
+        <div>
+            <div><strong>Dirección:</strong> ${direccion}</div>
+            <div><strong>Barrio:</strong> ${barrio}</div>
+            <div><strong>Región:</strong> ${region}</div>
+        </div>
+    `, { offset: L.point(0, -46) });
+    // Asegurar que al hacer click en el marcador se abra el popup (algunos entornos de cluster pueden interferir)
+    m.on('click', function () { try { this.openPopup(); } catch (_) { /* ignore */ } });
     return m;
 }
 
@@ -190,7 +201,7 @@ async function processData(rows) {
                 geocodedCount++;
                 const m = markerForRow(row, coords.lat, coords.lon);
                 allMarkers.push(m);
-                clusterGroup.addLayer(m);
+                addMarkersToGroup(clusterGroup, [m]);
             } else {
                 // 2) Si no hay coords, intentar geocodificar si hay dirección
                 const direccion = (row['Direccion'] ?? row['Dirección'] ?? row['direccion'] ?? '').trim();
@@ -251,6 +262,9 @@ function setupMap() {
         maxZoom: 20
     }).addTo(map);
 
+    // Añadir imagen overlay a la derecha de Argentina (no interactiva)
+    try { addRightSideImageOverlay(); } catch (_) { /* no crítico */ }
+
     // Crear cluster group inicial
     clusterGroup = createClusterGroup();
     attachClusterEvents(clusterGroup);
@@ -260,10 +274,47 @@ function setupMap() {
     map.on('moveend zoomend', updateVisibleCount);
 }
 
+// Añadir una imagen fija sobre el mapa (en coordenadas relativas a Argentina)
+function addRightSideImageOverlay() {
+    // Coordenadas aproximadas al este de Argentina para que la imagen aparezca 'a la derecha'
+    const lat = -45.0; // centro vertical aproximado
+    const lon = -52.0; // más al este para quedar a la derecha del país
+
+    const html = `<div class="map-overlay-image"></div>`;
+    const icon = L.divIcon({
+        className: 'no-pointer',
+        html,
+        iconSize: [500, 500],
+        iconAnchor: [70, 70],
+    });
+
+    const marker = L.marker([lat, lon], { icon, interactive: false, keyboard: false, pane: 'overlayPane' });
+    marker.addTo(map);
+    // Tamaño geográfico en grados (lat/lon) — esto hará que la imagen escale con el zoom
+    const deltaLat = 20.0; // altura en grados
+    const deltaLon = 30.0; // anchura en grados
+
+    const southWest = [lat - deltaLat / 2, lon - deltaLon / 2];
+    const northEast = [lat + deltaLat / 2, lon + deltaLon / 2];
+
+    const overlay = L.imageOverlay('./nuevoimpulso1.png', [southWest, northEast], { interactive: false, opacity: 1 });
+    overlay.addTo(map);
+    // Agregar clase para estilos (sombra, bordes). getElement() disponible tras addTo(map)
+    try {
+        const el = overlay.getElement();
+        if (el) el.classList.add('map-overlay-image');
+    } catch (e) { /* no crítico */ }
+}
+
 // Crear cluster group con radio actual
 function createClusterGroup() {
     // Mapear 0..100 a pixeles de radio (0 => 0px, 100 => 200px por ejemplo)
     const radiusPx = Math.round((clusterRadiusSetting / 100) * 200);
+    // Si el usuario puso 0, devolvemos un LayerGroup simple (sin clustering)
+    if (clusterRadiusSetting === 0) {
+        return L.layerGroup();
+    }
+
     const opts = {
         showCoverageOnHover: false,
         spiderfyOnMaxZoom: true,
@@ -283,14 +334,57 @@ function createClusterGroup() {
 
 // Asegurar comportamiento de zoom al hacer click en un cluster (y spiderfy si ya está muy cerca)
 function attachClusterEvents(group) {
-    group.on('clusterclick', function (a) {
-        // Zoom a límites del cluster
-        a.layer.zoomToBounds({ padding: [40, 40] });
-        // Si ya estamos muy cerca y sigue agrupado, spiderfy para separar
-        if (map.getZoom() >= 16) {
-            try { a.layer.spiderfy(); } catch (_) { }
-        }
-    });
+    // Sólo adjuntar eventos de cluster si el grupo es un MarkerClusterGroup
+    if (group && typeof group.getAllChildMarkers === 'function' && typeof group.on === 'function') {
+        group.on('clusterclick', function (a) {
+            // Zoom a límites del cluster
+            a.layer.zoomToBounds({ padding: [40, 40] });
+            // Si ya estamos muy cerca y sigue agrupado, spiderfy para separar
+            if (map.getZoom() >= 16) {
+                try { a.layer.spiderfy(); } catch (_) { }
+            }
+        });
+    }
+}
+
+// Añadir marcadores a un grupo (MarkerClusterGroup tiene addLayers, LayerGroup no)
+function addMarkersToGroup(group, markers) {
+    if (!group || !markers || !markers.length) return;
+    if (typeof group.addLayers === 'function') {
+        group.addLayers(markers);
+        return;
+    }
+    // Fallback: añadir uno por uno
+    for (const m of markers) {
+        try { group.addLayer(m); } catch (_) { }
+    }
+}
+
+// Añadir capa GeoJSON para Argentina (polígono); usa un CDN público con GeoJSON simplificado
+async function addArgentinaLayer() {
+    // Fuente simplificada de países (Natural Earth simplificado) - ejemplo público
+    const url = 'https://raw.githubusercontent.com/datasets/geo-countries/master/data/countries.geojson';
+    try {
+        const res = await fetch(url);
+        if (!res.ok) return;
+        const geo = await res.json();
+        // Buscar feature de Argentina (ISO_A3 === ARG or ADMIN === 'Argentina')
+        const feat = geo.features.find(f => (f.properties && (f.properties.ISO_A3 === 'ARG' || f.properties.ADMIN === 'Argentina' || f.properties.NAME === 'Argentina')));
+        if (!feat) return;
+        const argentina = L.geoJSON(feat, {
+            style: {
+                color: '#0b74ff',
+                weight: 1,
+                fillColor: 'rgba(11, 116, 255, 0.08)',
+                fillOpacity: 0.35,
+            },
+            interactive: false,
+        });
+        // Añadir primero (detrás de capas de marcadores)
+        argentina.addTo(map);
+    } catch (e) {
+        // silencioso
+    }
 }
 
 function wireUI() {
@@ -352,7 +446,7 @@ function wireUI() {
             clusterGroup = createClusterGroup();
             map.addLayer(clusterGroup);
             attachClusterEvents(clusterGroup);
-            if (prevMarkers.length) clusterGroup.addLayers(prevMarkers);
+            if (prevMarkers.length) addMarkersToGroup(clusterGroup, prevMarkers);
             updateVisibleCount();
         });
     }
@@ -435,13 +529,17 @@ async function init(forceReload = false) {
                     try {
                         const val = JSON.parse(localStorage.getItem(k));
                         if (val && typeof val.lat === 'number' && typeof val.lon === 'number') {
+                            // Crear marcador y enlazar popup mínimo con la clave (si no hay CSV cargado)
                             const m = L.marker([val.lat, val.lon], { icon: createCustomIcon() });
+                            const addr = k.replace(/^geo:/, '');
+                            m.bindPopup(`<div><div><strong>Dirección:</strong> ${addr}</div></div>`, { offset: L.point(0, -46) });
+                            m.on('click', function () { try { this.openPopup(); } catch (_) { } });
                             allMarkers.push(m);
                         }
                     } catch (_) { }
                 }
                 if (allMarkers.length) {
-                    clusterGroup.addLayers(allMarkers);
+                    addMarkersToGroup(clusterGroup, allMarkers);
                     updateVisibleCount();
                     progressText().textContent = 'Mostrando posiciones desde caché. Seleccioná un CSV para ver detalles.';
                 } else {
