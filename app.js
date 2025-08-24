@@ -117,8 +117,7 @@ async function geocodeAddress(q) {
     const res = await fetch(`${NOMINATIM_ENDPOINT}?${params.toString()}`, {
         headers: {
             'Accept-Language': 'es',
-            'Referer': location.origin,
-            'User-Agent': `Argentina-Map-App/1.0 (${USER_AGENT_EMAIL})`
+            'Referer': location.origin
         }
     });
     lastGeocodeTs = Date.now();
